@@ -5,6 +5,6 @@ const cardCtrl = require("../controllers/card");
 const router = express.Router();
 
 router.post("/create", cardCtrl.createCard);
-router.post("/view-card", cardCtrl.viewCard);
+router.get("/view-card/:user", cardCtrl.viewCard);
 
 module.exports = router;

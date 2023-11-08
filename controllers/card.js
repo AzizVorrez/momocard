@@ -32,4 +32,18 @@ exports.createCard = (req, res, next) => {
     });
 };
 
-exports.viewCard = (req, res, next) => {};
+exports.viewCard = (req, res, next) => {
+  console.log(req.params);
+  Card.findOne({ user: req.params.user })
+    .then((card) => {
+      if (!card) {
+        res.status(400).json({ message: "Utilisateur Introuvable" });
+      } else {
+        res.status(200).json({ card: card });
+      }
+    })
+    .catch((error) => {
+      console.error(error);
+      res.status(400).json({ error });
+    });
+};
