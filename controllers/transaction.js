@@ -5,7 +5,7 @@ const uuid = require("uuid");
 const externalTransactionId = uuid.v4();
 
 const autorization = (genereToken) => {
-  // Request body
+  // Request For UUID Register
   const body = {
     providerCallbackHost: "MoMoCard",
   };
@@ -13,7 +13,6 @@ const autorization = (genereToken) => {
   fetch("https://sandbox.momodeveloper.mtn.com/v1_0/apiuser", {
     method: "POST",
     body: JSON.stringify(body),
-    // Request headers
     headers: {
       "X-Reference-Id": externalTransactionId,
       "Content-Type": "application/json",
@@ -25,11 +24,11 @@ const autorization = (genereToken) => {
       if (response.status != 201) {
         response.status(500).json({ message: "Internal Error !" });
       } else {
+        // Request to Create API Key
         fetch(
           `https://sandbox.momodeveloper.mtn.com/v1_0/apiuser/${externalTransactionId}/apikey`,
           {
             method: "POST",
-            // Request headers
             headers: {
               "Cache-Control": "no-cache",
               "Ocp-Apim-Subscription-Key": "078933bfe87647b0a49024c377d1c468",
@@ -37,8 +36,27 @@ const autorization = (genereToken) => {
           }
         )
           .then((response) => {
-            console.log(response.status);
-            console.log(response.text());
+            if (response.status != 201) {
+              console.log(response.status);
+              console.log(response.text());
+            } else {
+              // Request to Create Token
+              fetch("https://sandbox.momodeveloper.mtn.com/collection/token/", {
+                method: "POST",
+                headers: {
+                  Authorization:
+                    "Basic ODlhNjE2ZjMtNGE2Zi00OGE0LWFhM2ItZDkyZjU1ZWE5YTE5OjQwNjQ5ZGZlZDc3ZjQ5Y2Q4MjQ3ZTg5MDJjYjQ4NDli",
+                  "Cache-Control": "no-cache",
+                  "Ocp-Apim-Subscription-Key":
+                    "078933bfe87647b0a49024c377d1c468",
+                },
+              })
+                .then((response) => {
+                  console.log(response.status);
+                  console.log(response.text());
+                })
+                .catch((err) => console.error(err));
+            }
           })
           .catch((err) => console.error(err));
       }
