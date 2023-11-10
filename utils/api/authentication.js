@@ -2,14 +2,20 @@ function getSubscriptionKeyFromEnv() {
     return "078933bfe87647b0a49024c377d1c468" /// a transformer en variable d'environnement !,;
 }
 
-export class ApiAuthenticationByReference {
+class ApiAuthenticationByReference {
 
     referenceId = '';
     apiKey = '';
     accessToken = '';
 
-    constructor(referenceId) {
+    providerCallbackHost = '';
+
+    constructor(referenceId, providerCallbackHost = "MoMoCard") {
         this.referenceId = referenceId;
+        this.providerCallbackHost = providerCallbackHost;
+        
+        this.apiKey = '';
+        this.accessToken = '';
     }
 
     get subscriptionKey() {
@@ -33,7 +39,9 @@ export class ApiAuthenticationByReference {
     async createApiUser() {
         return fetch("https://sandbox.momodeveloper.mtn.com/v1_0/apiuser", {
             method: "POST",
-            body: JSON.stringify(body),
+            body: JSON.stringify({
+                providerCallbackHost: this.providerCallbackHost,
+            }),
             // Request headers
             headers: {
                 "X-Reference-Id": this.referenceId,
@@ -43,7 +51,8 @@ export class ApiAuthenticationByReference {
             },
         })
             .then((response) => {
-                if (response.status != 201) {
+                console.log("createApiUser - status: ", response.status);
+                if (response.status !== 201) {
                     return false;
                 }
                 return true;
@@ -60,11 +69,12 @@ export class ApiAuthenticationByReference {
         let created = await this.createApiUser(this.transactionId);
 
         if (!created) {
+            console.log("user was not created");
             return undefined;
         }
 
         let apiKey = await fetch(
-            `https://sandbox.momodeveloper.mtn.com/v1_0/apiuser/${this.transactionId}/apikey`,
+            `https://sandbox.momodeveloper.mtn.com/v1_0/apiuser/${this.referenceId}/apikey`,
             {
                 method: "POST",
                 // Request headers
@@ -75,14 +85,14 @@ export class ApiAuthenticationByReference {
             }
         )
             .then(async (response) => {
+                let obj = await response.json();
                 if (response.status === 201) {
-                    let obj = await response.json();
                     if (obj.apiKey) {
                         this.apiKey = obj.apiKey;
+                        console.log("API KEY: ", obj.apiKey);
                         return obj.apiKey;
                     }
                 }
-
                 return undefined;
             })
             .catch((err) => {
@@ -100,13 +110,14 @@ export class ApiAuthenticationByReference {
     async authenticate() {
 
         await this.generateApiKey();
+
         if (!this.apiKey) {
             return undefined;
         }
 
         let authToken = this.generateBasicAuthToken();
 
-        await fetch("https://sandbox.momodeveloper.mtn.com/collection/token/", {
+        let output = await fetch("https://sandbox.momodeveloper.mtn.com/collection/token/", {
             method: "POST",
             headers: {
                 Authorization:
@@ -120,9 +131,11 @@ export class ApiAuthenticationByReference {
                 let jsonRes = await res.json();
                 if (jsonRes.access_token) {
                     this.accessToken = jsonRes.access_token;
-                    return this.accessToken;
+                    return jsonRes.access_token;
                 }
             });
+
+        return output;
     }
 
 }
