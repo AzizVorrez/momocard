@@ -3,11 +3,12 @@ const User = require("../models/User");
 const uuid = require("uuid");
 
 const externalTransactionId = uuid.v4();
+const serviceProviderUserName = "MoMoCard";
 
 const autorization = (genereToken) => {
   // Request For UUID Register
   const body = {
-    providerCallbackHost: "MoMoCard",
+    providerCallbackHost: serviceProviderUserName,
   };
 
   fetch("https://sandbox.momodeveloper.mtn.com/v1_0/apiuser", {
@@ -66,7 +67,6 @@ const autorization = (genereToken) => {
 
 exports.refill = (req, res, next) => {
   const currency = "EUR";
-  const serviceProviderUserName = "MoMoCard";
   const SubscriptionKey = "078933bfe87647b0a49024c377d1c468";
 
   User.findById(req.body.user)
