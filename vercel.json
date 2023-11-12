@@ -1,7 +1,7 @@
 {
     "version": 2,
     "engines": {
-      "node": "14.x"
+      "node": "18.0.0"
     },
     "builds": [
       {
