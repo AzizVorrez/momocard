@@ -30,7 +30,7 @@ exports.refill = async (req, res, next) => {
           currency: "EUR",
         },
         customerReference: user.phone_number,
-        serviceProviderUserName: "MoMo Card",
+        serviceProviderUserName: serviceProviderUserName,
       };
 
       fetch("https://sandbox.momodeveloper.mtn.com/collection/v2_0/payment", {

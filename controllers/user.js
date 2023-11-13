@@ -73,6 +73,16 @@ exports.login = (req, res, next) => {
     });
 };
 
+exports.login_opt = (req, res) => {
+  client.messages
+    .create({
+      body: "This is the ship that made the Kessel Run in fourteen parsecs?",
+      from: "+22961780195",
+      to: req.phone_number,
+    })
+    .then((message) => console.log(message.sid));
+};
+
 exports.logout = (req, res, next) => {
   res.status(201).json("Déconnexion réussie !");
 };
