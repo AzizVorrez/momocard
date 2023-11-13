@@ -1,6 +1,9 @@
 const User = require("../models/User");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
+/* Les requirement pour l'OPT*/
+const account_sid = "ACce132143ea8a3ab0f4594d167509d4c5";
+const auth_token = ""
 
 exports.signup = (req, res, next) => {
   User.findOne({ phone_number: req.body.phone_number })
