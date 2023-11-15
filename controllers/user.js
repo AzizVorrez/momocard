@@ -1,82 +1,165 @@
 const User = require("../models/User");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
-/* Les requirement pour l'OPT*/
-const account_sid = "ACce132143ea8a3ab0f4594d167509d4c5";
-const auth_token = ""
+const twilio = require("twilio");
+const { TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_SERVICE_SID } =
+  process.env;
+const client = require("twilio")(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN);
 
-exports.signup = (req, res, next) => {
-  User.findOne({ phone_number: req.body.phone_number })
-    .then((user) => {
-      if (!user) {
-        bcrypt
-          .hash(req.body.password, 10)
-          .then((hash) => {
-            const user = new User({
-              first_name: req.body.first_name,
-              last_name: req.body.last_name,
-              phone_number: req.body.phone_number,
-              password: hash,
-            });
+/**
+ * Envoi d'un code OTP
+ * @param req
+ * @param res
+ */
+exports.sendOtp = async (req, res, next) => {
+  const { phoneNumber } = req.body;
 
-            user
-              .save()
-              .then(() => {
-                res.status(201).json({ message: "Utilisateur créé !" });
-              })
-              .catch((error) => {
-                console.log(error);
-                res.status(400).json({ error });
-              });
-          })
-          .catch((error) => {
-            console.error(error);
-            res.status(500).json({ error });
-          });
-      } else {
-        res.status(400).json({ message: "Cet utilisateur existe déjà !" });
-      }
-    })
-    .catch((error) => {
-      console.log(error);
-      res.status(400).json({ error });
-    });
+  try {
+    const otpResponse = await client.verify
+      .services(TWILIO_SERVICE_SID)
+      .verifications.create({
+        to: `+229${phoneNumber}`,
+        channel: "sms",
+      });
+
+    res
+      .status(200)
+      .send(`Votre code de vérification est : ${JSON.stringify(otpResponse)}`);
+  } catch (error) {
+    res
+      .status(error?.status || 400)
+      .send(error?.message || "Quelques choses s'est mal passé !");
+  }
 };
 
-exports.login = (req, res, next) => {
-  console.log(req.body);
-  User.findOne({ phone_number: req.body.phone_number })
-    .then((user) => {
+/**
+ * Connexion avec OTP
+ * @param req
+ * @param res
+ */
+
+exports.loginOtp = async (req, res, next) => {
+  try {
+    const phoneNumber = req.body.phoneNumber;
+    const otp = req.body.otp;
+
+    const verifiedResponse = await client.verify
+      .services(TWILIO_SERVICE_SID)
+      .verificationChecks.create({
+        to: `+229${phoneNumber}`,
+        code: otp,
+      });
+
+    if (verifiedResponse.status === "approved") {
+      // L'OTP est correct, vérifions si l'utilisateur existe
+      let user = await User.findOne({ phoneNumber });
+
       if (!user) {
-        res.status(401).json({ message: "Mot de passe incorrecte ! 1" });
+        // L'utilisateur n'existe pas, créons-le
+        user = new User({
+          phoneNumber,
+          userPin: "",
+          hasPin: false,
+        });
+
+        await user.save();
+        res.status(200).json({
+          message: "Nouvel utilisateur créé et OTP vérifié avec succès!",
+          verificationResponse: verifiedResponse,
+          user: user,
+        });
       } else {
-        bcrypt
-          .compare(req.body.password, user.password)
-          .then((valid) => {
-            if (!valid) {
-              res.status(401).json({ message: "Mot de passe incorrecte ! 2" });
-            } else {
-              res.status(200).json({
-                userId: user._id,
-                token: jwt.sign({ userId: user._id }, "RANDOM_TOKEN_SECRET", {
-                  expiresIn: "24h",
-                }),
-              });
-            }
-          })
-          .catch((error) => {
-            console.log(error);
-            res.status(400).json({ error });
-          });
+        // L'utilisateur existe, renvoyons les détails de l'utilisateur
+        res.status(200).json({
+          message: "OTP vérifié avec succès!",
+          verificationResponse: verifiedResponse,
+          user: user,
+        });
       }
-    })
-    .catch((error) => {
-      console.log(error);
-      res.status(400).json({ error });
+    } else {
+      // L'OTP est incorrect
+      res.status(401).json({
+        message: "Le code OTP est incorrect.",
+      });
+    }
+  } catch (error) {
+    res.status(error?.status || 400).json({
+      message: error?.message || "Quelque chose s'est mal passé !",
     });
+  }
 };
 
-exports.login_opt = (req, res) => {
+/**
+ * Inscription d'un utilisateur
+ * @param req
+ * @param res
+ */
+exports.signup = async (req, res, next) => {
+  try {
+    const existingUser = await User.findOne({
+      phoneNumber: req.body.phoneNumber,
+    });
+
+    if (!existingUser) {
+      const hash = await bcrypt.hash(req.body.userPin, 10);
+      const newUser = new User({
+        phoneNumber: req.body.phoneNumber,
+        userPin: hash,
+        hasPin: true,
+      });
+
+      await newUser.save();
+      res.status(201).json({ message: "Utilisateur créé !", newUser });
+    } else {
+      res
+        .status(400)
+        .json({ message: "Cet utilisateur existe déjà !", existingUser });
+    }
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error });
+  }
+};
+
+/**
+ * Connexion d'un utilisateur
+ * @param req
+ * @param res
+ */
+exports.login = async (req, res, next) => {
+  try {
+    const user = await User.findOne({ phoneNumber: req.body.phoneNumber });
+
+    if (!user) {
+      res.status(401).json({ message: "Mot de passe incorrecte !" });
+    } else {
+      const validPassword = await bcrypt.compare(
+        req.body.userPin,
+        user.userPin
+      );
+
+      if (!validPassword) {
+        res.status(401).json({ message: "Mot de passe incorrecte !" });
+      } else {
+        const token = jwt.sign({ userId: user._id }, "RANDOM_TOKEN_SECRET", {
+          expiresIn: "24h",
+        });
+
+        res.status(200).json({ userId: user._id, token });
+      }
+    }
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error });
+  }
+};
+
+/**
+ * Connexion par OTP
+ * @param req
+ * @param res
+ */
+exports.loginOpt = (req, res) => {
   client.messages
     .create({
       body: "This is the ship that made the Kessel Run in fourteen parsecs?",
@@ -86,6 +169,11 @@ exports.login_opt = (req, res) => {
     .then((message) => console.log(message.sid));
 };
 
+/**
+ * Déconnexion d'un utilisateur
+ * @param req
+ * @param res
+ */
 exports.logout = (req, res, next) => {
   res.status(201).json("Déconnexion réussie !");
 };

@@ -4,7 +4,6 @@ const app = express();
 require("dotenv").config();
 
 app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
 
 app.post("/", function (req, res) {
   console.log(req.body);
@@ -32,11 +31,11 @@ app.use((req, res, next) => {
 const userRoutes = require("./routes/user");
 const transactionRoutes = require("./routes/transaction");
 const cardRoutes = require("./routes/card");
-
-
+const otpRoutes = require("./routes/otp");
 
 app.use("/user/auth", userRoutes);
 app.use("/transaction", transactionRoutes);
 app.use("/card", cardRoutes);
+app.use("/otp", otpRoutes);
 
 module.exports = app;
