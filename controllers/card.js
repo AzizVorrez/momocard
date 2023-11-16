@@ -1,7 +1,7 @@
 const Card = require("../models/Card");
 const User = require("../models/User");
 
-exports.createCard = (req, res, next) => {
+exports.createCard = async (req, res, next) => {
   User.findById(req.body.user)
     .then((user) => {
       if (!user) {
@@ -9,8 +9,8 @@ exports.createCard = (req, res, next) => {
       } else {
         const card = new Card({
           user: user,
-          card_type: req.body.card_type,
-          id_card: req.body.id_card,
+          cardType: req.body.cardType,
+          idCard: req.body.idCard,
         });
 
         card

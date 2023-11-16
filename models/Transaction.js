@@ -9,6 +9,7 @@ const TransactionSchema = mongoose.Schema({
   partyId: { type: String, required: true },
   payerMessage: { type: String, required: true },
   payeeNote: { type: String, required: true },
+  transactionType: { type: String, required: true },
   createdAt: { type: Date, default: Date.now },
 });
 
