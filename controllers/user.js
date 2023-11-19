@@ -75,12 +75,17 @@ exports.loginOtp = async (req, res, next) => {
         });
       } else {
         // L'utilisateur existe, renvoyons les détails de l'utilisateur
+        await user.save();
+        const token = jwt.sign({ userId: user._id }, "RANDOM_TOKEN_SECRET", {
+          expiresIn: "30m",
+        });
         res.status(200).json({
           message: "OTP vérifié avec succès!",
           sendTo: verifiedResponse.to,
           status: verifiedResponse.status,
           valid: verifiedResponse.valid,
           user: user,
+          token,
         });
       }
     } else {
@@ -201,7 +206,7 @@ exports.loginDev = async (req, res, next) => {
         const token = jwt.sign({ userId: user._id }, "RANDOM_TOKEN_SECRET", {
           expiresIn: "30m",
         });
-        res.status(200).json({ user: user._id, token });
+        res.status(200).json({ token });
       } else {
         res.status(400).json({ message: "Code incorrect" });
       }
