@@ -7,4 +7,6 @@ router.post("/login", userCtrl.login);
 router.post("/signup", userCtrl.signup);
 router.post("/logout", userCtrl.logout);
 router.post("/otp/login", userCtrl.loginOtp);
+router.post("/login-dev", userCtrl.loginDev);
+
 module.exports = router;

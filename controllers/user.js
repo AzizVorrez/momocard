@@ -21,10 +21,9 @@ exports.sendOtp = async (req, res, next) => {
         to: `+229${phoneNumber}`,
         channel: "sms",
       });
-
     res
       .status(200)
-      .send(`Votre code de vérification est : ${JSON.stringify(otpResponse)}`);
+      .json({ SendTo: otpResponse.to, Status: otpResponse.status });
   } catch (error) {
     res
       .status(error?.status || 400)
@@ -63,16 +62,24 @@ exports.loginOtp = async (req, res, next) => {
         });
 
         await user.save();
+        const token = jwt.sign({ userId: user._id }, "RANDOM_TOKEN_SECRET", {
+          expiresIn: "30m",
+        });
         res.status(200).json({
           message: "Nouvel utilisateur créé et OTP vérifié avec succès!",
-          verificationResponse: verifiedResponse,
+          sendTo: verifiedResponse.to,
+          status: verifiedResponse.status,
+          valid: verifiedResponse.valid,
           user: user,
+          token,
         });
       } else {
         // L'utilisateur existe, renvoyons les détails de l'utilisateur
         res.status(200).json({
           message: "OTP vérifié avec succès!",
-          verificationResponse: verifiedResponse,
+          sendTo: verifiedResponse.to,
+          status: verifiedResponse.status,
+          valid: verifiedResponse.valid,
           user: user,
         });
       }
@@ -142,7 +149,7 @@ exports.login = async (req, res, next) => {
         res.status(401).json({ message: "Mot de passe incorrecte !" });
       } else {
         const token = jwt.sign({ userId: user._id }, "RANDOM_TOKEN_SECRET", {
-          expiresIn: "24h",
+          expiresIn: "30m",
         });
 
         res.status(200).json({ userId: user._id, token });
@@ -176,4 +183,33 @@ exports.loginOpt = (req, res) => {
  */
 exports.logout = (req, res, next) => {
   res.status(201).json("Déconnexion réussie !");
+};
+
+/**
+ * @param req
+ * @param res
+ */
+
+exports.loginDev = async (req, res, next) => {
+  try {
+    const user = User.findOne({ phoneNumber: req.body.phoneNumber });
+    console.log(user);
+    if (user) {
+      code = req.body.code;
+      console.log(code);
+      if (code === 1234) {
+        const token = jwt.sign({ userId: user._id }, "RANDOM_TOKEN_SECRET", {
+          expiresIn: "30m",
+        });
+        res.status(200).json({ user: user._id, token });
+      } else {
+        res.status(400).json({ message: "Code incorrect" });
+      }
+    } else {
+      res.status(400).json({ message: "Cet utilisateur n'existe pas !" });
+    }
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error });
+  }
 };
