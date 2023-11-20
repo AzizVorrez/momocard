@@ -229,7 +229,7 @@ exports.loginDev = async (req, res, next) => {
 exports.pinSet = async (req, res) => {
   try {
     userId = req.body.userId;
-    const user = await User.findById(userId)
+    await User.findById(userId)
       .exec()
       .then((user) => {
         if (user) {
@@ -241,10 +241,10 @@ exports.pinSet = async (req, res) => {
 
             res.status(200).json({ success: true });
           } else {
-            res.status(400).json({ error: { code: PIN_ALREADY_EXISTS } });
+            res.status(400).json({ error: { code: "PIN_ALREADY_EXISTS" } });
           }
         } else {
-          res.status(404).json({ error: { code: USER_NOT_FOUND } });
+          res.status(404).json({ error: { code: "USER_NOT_FOUND" } });
         }
       });
 
