@@ -211,7 +211,8 @@ exports.loginDev = async (req, res, next) => {
                 expiresIn: "30m",
               }
             );
-            res.status(200).json({ user: user.userId, token });
+            const user = user._id;
+            res.status(200).json({ user, token });
           } else {
             res.status(400).json({ message: "Code incorrect" });
           }
