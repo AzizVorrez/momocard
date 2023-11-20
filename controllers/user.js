@@ -202,7 +202,6 @@ exports.loginDev = async (req, res, next) => {
       .then((user) => {
         if (user) {
           code = req.body.code;
-          console.log(user);
           if (code === 1234) {
             const token = jwt.sign(
               { userId: user._id },
@@ -211,8 +210,8 @@ exports.loginDev = async (req, res, next) => {
                 expiresIn: "30m",
               }
             );
-            const user = user._id;
-            res.status(200).json({ user, token });
+
+            res.status(200).json({ user: user._id, token });
           } else {
             res.status(400).json({ message: "Code incorrect" });
           }
