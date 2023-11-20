@@ -197,22 +197,29 @@ exports.logout = (req, res, next) => {
 
 exports.loginDev = async (req, res, next) => {
   try {
-    const user = User.findOne({ phoneNumber: req.body.phoneNumber });
-    console.log(user);
-    if (user) {
-      code = req.body.code;
-      console.log(code);
-      if (code === 1234) {
-        const token = jwt.sign({ userId: user._id }, "RANDOM_TOKEN_SECRET", {
-          expiresIn: "30m",
-        });
-        res.status(200).json({ token });
-      } else {
-        res.status(400).json({ message: "Code incorrect" });
-      }
-    } else {
-      res.status(400).json({ message: "Cet utilisateur n'existe pas !" });
-    }
+    const user = await User.findOne({ phoneNumber: req.body.phoneNumber })
+      .exec()
+      .then((user) => {
+        if (user) {
+          code = req.body.code;
+          console.log(user);
+          if (code === 1234) {
+            const token = jwt.sign(
+              { userId: user._id },
+              "RANDOM_TOKEN_SECRET",
+              {
+                expiresIn: "30m",
+              }
+            );
+            res.status(200).json({ user: user.userId, token });
+          } else {
+            res.status(400).json({ message: "Code incorrect" });
+          }
+        } else {
+          res.status(400).json({ message: "Cet utilisateur n'existe pas !" });
+        }
+      });
+    
   } catch (error) {
     console.error(error);
     res.status(500).json({ error });
