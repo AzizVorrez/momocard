@@ -218,3 +218,32 @@ exports.loginDev = async (req, res, next) => {
     res.status(500).json({ error });
   }
 };
+
+exports.pinSet = async (req, res) => {
+  try {
+    userId = req.body.userId;
+    const user = await User.findById(userId)
+      .exec()
+      .then((user) => {
+        if (user) {
+          console.log(user);
+          if (user.hasPin === false) {
+            user.userPin = req.body.userPin;
+            user.hasPin = true;
+            user.save();
+
+            res.status(200).json({ success: true });
+          } else {
+            res.status(400).json({ error: { code: PIN_ALREADY_EXISTS } });
+          }
+        } else {
+          res.status(404).json({ error: { code: USER_NOT_FOUND } });
+        }
+      });
+
+    
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error });
+  }
+};
