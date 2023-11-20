@@ -222,23 +222,26 @@ exports.loginDev = async (req, res, next) => {
 exports.pinSet = async (req, res) => {
   try {
     userId = req.body.userId;
-    const user = User.findById(userId);
+    const user = await User.findById(userId)
+      .exec()
+      .then((user) => {
+        if (user) {
+          console.log(user);
+          if (user.hasPin === false) {
+            user.userPin = req.body.userPin;
+            user.hasPin = true;
+            user.save();
 
-    if (user) {
-      if (user.hasPin === false) {
-        userUpdate = new User({
-          userPin: req.body.userPin,
-          hasPin: true,
-        });
-        await userUpdate.save();
+            res.status(200).json({ success: true });
+          } else {
+            res.status(400).json({ error: { code: PIN_ALREADY_EXISTS } });
+          }
+        } else {
+          res.status(404).json({ error: { code: USER_NOT_FOUND } });
+        }
+      });
 
-        res.status(200).json({ user });
-      } else {
-        res.status(400).json({ message: "This user has Pin !" });
-      }
-    } else {
-      res.status(404).json({ message: "This doesn't exist !" });
-    }
+    
   } catch (error) {
     console.error(error);
     res.status(500).json({ error });
