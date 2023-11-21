@@ -54,9 +54,8 @@ exports.refill = async (req, res, next) => {
         },
       })
         .then((response) => {
-          console.log(response);
           if (response.status != 202) {
-            res.status(400).json({ message: "Paiement échoué" });
+            res.status(400).json({ error: { code: "PAYMENT_FAILED" } });
           } else {
             const transaction = new Transaction({
               user: user,
@@ -70,7 +69,8 @@ exports.refill = async (req, res, next) => {
               transactionType: req.body.transactionType,
             });
             transaction.save();
-            res.status(202).json({ message: "Paiement effectué !" });
+            console.log(user.card);
+            res.status(202).json({ success: true });
           }
         })
         .catch((err) => console.error(err));
@@ -86,8 +86,6 @@ exports.receive = async (req, res, next) => {
     const cardExist = Card.findById(req.body.cardId);
 
     if (cardExist) {
-      // Ici nous récupère l'ID de la carte et je l'associe à l'ID de l'user !
-
       userId = req.body.idCard;
       const user = await User.findById(userId);
 

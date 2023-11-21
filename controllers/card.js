@@ -10,15 +10,13 @@ exports.createCard = async (req, res, next) => {
         const card = new Card({
           user: user,
           cardType: req.body.cardType,
-          idCard: req.body.idCard,
+          cardNumber: req.body.cardNumber,
         });
 
         card
           .save()
           .then(() => {
-            res
-              .status(201)
-              .json({ message: "Carte créée avec succès", card: card });
+            res.status(201).json({ success: true, card: card });
           })
           .catch((error) => {
             console.error(error);
