@@ -1,6 +1,7 @@
 const mongoose = require("mongoose");
 
 const UserSchema = mongoose.Schema({
+  card: { type: mongoose.Schema.Types.ObjectId, ref: "Card" },
   phoneNumber: { type: String, required: true },
   userPin: { type: String, required: false },
   createdAt: { type: Date, default: Date.now },

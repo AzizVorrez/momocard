@@ -3,7 +3,7 @@ const mongoose = require("mongoose");
 const CardSchema = mongoose.Schema({
   user: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
   cardType: { type: String, required: false, default: "0" },
-  idCard: { type: String, required: true },
+  cardNumber: { type: String, required: true },
   createdAt: { type: Date, default: Date.now },
 });
 

@@ -1,5 +1,6 @@
 const User = require("../models/User");
 const bcrypt = require("bcrypt");
+const { error } = require("console");
 const jwt = require("jsonwebtoken");
 const twilio = require("twilio");
 const { TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_SERVICE_SID } =
@@ -63,7 +64,7 @@ exports.loginOtp = async (req, res, next) => {
 
         await user.save();
         const token = jwt.sign({ userId: user._id }, "RANDOM_TOKEN_SECRET", {
-          expiresIn: "30m",
+          expiresIn: "24h",
         });
         res.status(200).json({
           message: "Nouvel utilisateur créé et OTP vérifié avec succès!",
@@ -153,6 +154,7 @@ exports.login = async (req, res, next) => {
       if (!validPassword) {
         res.status(401).json({ message: "Mot de passe incorrecte !" });
       } else {
+        console.log(user.card);
         const token = jwt.sign({ userId: user._id }, "RANDOM_TOKEN_SECRET", {
           expiresIn: "30m",
         });
@@ -164,21 +166,6 @@ exports.login = async (req, res, next) => {
     console.error(error);
     res.status(500).json({ error });
   }
-};
-
-/**
- * Connexion par OTP
- * @param req
- * @param res
- */
-exports.loginOpt = (req, res) => {
-  client.messages
-    .create({
-      body: "This is the ship that made the Kessel Run in fourteen parsecs?",
-      from: "+22961780195",
-      to: req.phone_number,
-    })
-    .then((message) => console.log(message.sid));
 };
 
 /**
@@ -197,32 +184,43 @@ exports.logout = (req, res, next) => {
 
 exports.loginDev = async (req, res, next) => {
   try {
-    const user = await User.findOne({ phoneNumber: req.body.phoneNumber })
-      .exec()
-      .then((user) => {
-        if (user) {
-          code = req.body.code;
-          if (code === 1234) {
-            const token = jwt.sign(
-              { userId: user._id },
-              "RANDOM_TOKEN_SECRET",
-              {
-                expiresIn: "30m",
-              }
-            );
-
-            res.status(200).json({ user: user._id, token });
-          } else {
-            res.status(400).json({ message: "Code incorrect" });
-          }
-        } else {
-          res.status(400).json({ message: "Cet utilisateur n'existe pas !" });
-        }
+    const user = User.findById(user._id);
+    if (!user && code === 1234) {
+      // L'utilisateur n'existe pas, créons-le
+      user = new User({
+        phoneNumber,
+        userPin: "",
+        hasPin: false,
       });
-    
+
+      await user.save();
+      const token = jwt.sign({ userId: user._id }, "RANDOM_TOKEN_SECRET", {
+        expiresIn: "24h",
+      });
+      res.status(200).json({
+        message: "Nouvel utilisateur créé et OTP vérifié avec succès!",
+        user: user,
+        token,
+      });
+    } else {
+      // L'utilisateur existe, renvoyons les détails de l'utilisateur
+      await user.save();
+      const token = jwt.sign({ userId: user._id }, "RANDOM_TOKEN_SECRET", {
+        expiresIn: "30m",
+      });
+      res.status(200).json({
+        message: "OTP vérifié avec succès!",
+        sendTo: verifiedResponse.to,
+        status: verifiedResponse.status,
+        valid: verifiedResponse.valid,
+        user: user,
+        token,
+      });
+    }
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ error });
+    res.status(error?.status || 400).json({
+      message: error?.message || "Quelque chose s'est mal passé !",
+    });
   }
 };
 
@@ -247,10 +245,19 @@ exports.pinSet = async (req, res) => {
           res.status(404).json({ error: { code: "USER_NOT_FOUND" } });
         }
       });
-
-    
   } catch (error) {
     console.error(error);
     res.status(500).json({ error });
   }
+};
+
+exports.getUser = async (req, res) => {
+  User.findById(req.params.user)
+    .then((user) => {
+      if (user) {
+        res.status(200).json({ success: true, user });
+      }
+      res.status(404).json({ error: { code: "USER_NOT_FOUND" } });
+    })
+    .catch((err) => console.error(err));
 };
