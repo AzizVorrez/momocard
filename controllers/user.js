@@ -6,6 +6,8 @@ const twilio = require("twilio");
 const { TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_SERVICE_SID } =
   process.env;
 const client = require("twilio")(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN);
+const ApiAuthenticationByReference = require("../utils/api/authentication");
+const uuid = require("uuid");
 
 /**
  * Envoi d'un code OTP
@@ -226,8 +228,7 @@ exports.loginDev = async (req, res, next) => {
 
 exports.pinSet = async (req, res) => {
   try {
-    userId = req.body.userId;
-    await User.findById(userId)
+    await User.findOne({ userId: req.body.phoneNumber })
       .exec()
       .then((user) => {
         if (user) {
@@ -252,12 +253,65 @@ exports.pinSet = async (req, res) => {
 };
 
 exports.getUser = async (req, res) => {
-  User.findById(req.params.user)
-    .then((user) => {
-      if (user) {
-        res.status(200).json({ success: true, user });
-      }
-      res.status(404).json({ error: { code: "USER_NOT_FOUND" } });
-    })
-    .catch((err) => console.error(err));
+  const SUBSCRIPTION_KEY = process.env.SUBSCRIPTION_KEY;
+  try {
+    /*
+      Pour lancer la création du access_token
+        1 - Enregistremment du uuid généré ici,
+        2 - Génération du api_key,
+        3 - Génération du access_token
+      */
+    const externalTransactionId = uuid.v4();
+    const authHandler = new ApiAuthenticationByReference(externalTransactionId);
+
+    // Appeler la méthode authenticate pour obtenir l'access_token
+    const accessToken = await authHandler.authenticate();
+
+    User.findById(req.params.user)
+      .then((user) => {
+        if (user) {
+          const accountHolderMSISDN = user.phoneNumber;
+          console.log("Téléphone de user", accountHolderMSISDN);
+          // Get user info form API MTN
+          fetch(
+            `https://sandbox.momodeveloper.mtn.com/collection//v1_0/accountholder/msisdn/${accountHolderMSISDN}/basicuserinfo`,
+            {
+              method: "GET",
+              // Request headers
+              headers: {
+                Authorization: `Bearer ${accessToken}`,
+                "X-Target-Environment": "sandbox",
+                "Cache-Control": "no-cache",
+                "Ocp-Apim-Subscription-Key": SUBSCRIPTION_KEY,
+              },
+            }
+          )
+            .then((response) => {
+              console.log(response.status);
+              console.log(response.text());
+              res.status(200).json({
+                userId: user._id,
+                userPhone: user.phoneNumber,
+                userPin: user.userPin,
+                hasPin: user.hasPin,
+                userName: response.name,
+                userGiveName: response.given_name,
+                userFamillyName: response.family_name,
+                userBirthdate: response.birthdate,
+                userLocale: response.locale,
+                userGender: response.gender,
+              });
+            })
+            .catch((err) => console.error(err));
+
+          res.status(200).json({ success: true, user });
+        } else {
+          res.status(404).json({ error: { code: "USER_NOT_FOUND" } });
+        }
+      })
+      .catch((err) => console.error(err));
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Erreur serveur interne" });
+  }
 };
