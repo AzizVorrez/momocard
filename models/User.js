@@ -7,6 +7,12 @@ const UserSchema = mongoose.Schema({
   createdAt: { type: Date, default: Date.now },
   updateAt: { type: Date, default: Date.now },
   hasPin: { type: Boolean, default: false },
+  userName: { type: String, required: true },
+  userGivenName: { type: String, required: true },
+  userFamilyName: { type: String, required: true },
+  userBirthdate: { type: String, required: true },
+  userLocale: { type: String, required: true },
+  userGender: { type: String, required: true },
 });
 
 module.exports = mongoose.model("User", UserSchema);
