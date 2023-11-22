@@ -8,6 +8,7 @@ const { TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_SERVICE_SID } =
 const client = require("twilio")(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN);
 const ApiAuthenticationByReference = require("../utils/api/authentication");
 const uuid = require("uuid");
+const { response } = require("express");
 
 /**
  * Envoi d'un code OTP
@@ -41,43 +42,75 @@ exports.sendOtp = async (req, res, next) => {
  */
 
 exports.loginOtp = async (req, res, next) => {
+  const SUBSCRIPTION_KEY = process.env.SUBSCRIPTION_KEY;
+  const externalTransactionId = uuid.v4();
+  const authHandler = new ApiAuthenticationByReference(externalTransactionId);
+  const accessToken = await authHandler.authenticate();
+
   try {
-    const phoneNumber = req.body.phoneNumber;
     const otp = req.body.otp;
 
     const verifiedResponse = await client.verify
       .services(TWILIO_SERVICE_SID)
       .verificationChecks.create({
-        to: `+229${phoneNumber}`,
+        to: `+229${req.body.phoneNumber}`,
         code: otp,
       });
 
     if (verifiedResponse.status === "approved") {
-      // L'OTP est correct, vérifions si l'utilisateur existe
-      let user = await User.findOne({ phoneNumber });
+      const user = await User.findOne({ phoneNumber: req.body.phoneNumber });
+      console.log("User trouvé -", user);
 
       if (!user) {
-        // L'utilisateur n'existe pas, créons-le
-        user = new User({
-          phoneNumber,
-          userPin: "",
-          hasPin: false,
-        });
+        const accountHolderMSISDN = req.body.phoneNumber;
+        console.log("Téléphone de user", accountHolderMSISDN);
 
-        await user.save();
-        const token = jwt.sign({ userId: user._id }, "RANDOM_TOKEN_SECRET", {
-          expiresIn: "24h",
-        });
-        res.status(200).json({
-          message: "Nouvel utilisateur créé et OTP vérifié avec succès!",
-          sendTo: verifiedResponse.to,
-          status: verifiedResponse.status,
-          valid: verifiedResponse.valid,
-          user: user,
-          token,
-        });
+        try {
+          const response = await fetch(
+            `https://sandbox.momodeveloper.mtn.com/collection//v1_0/accountholder/msisdn/${accountHolderMSISDN}/basicuserinfo`,
+            {
+              method: "GET",
+              headers: {
+                Authorization: `Bearer ${accessToken}`,
+                "X-Target-Environment": "sandbox",
+                "Cache-Control": "no-cache",
+                "Ocp-Apim-Subscription-Key": SUBSCRIPTION_KEY,
+              },
+            }
+          );
+
+          const data = await response.json();
+          console.log("Data", data);
+
+          const user = new User({
+            userName: data.name,
+            userGivenName: data.given_name,
+            userFamilyName: data.family_name,
+            userBirthdate: data.birthdate,
+            userLocale: data.locale,
+            userGender: data.gender,
+            phoneNumber: req.body.phoneNumber,
+            userPin: "",
+            hasPin: false,
+          });
+
+          await user.save();
+          const token = jwt.sign({ userId: user._id }, "RANDOM_TOKEN_SECRET", {
+            expiresIn: "24h",
+          });
+          res.status(200).json({
+            message: "Nouvel utilisateur créé et OTP vérifié avec succès!",
+            sendTo: verifiedResponse.to,
+            status: verifiedResponse.status,
+            valid: verifiedResponse.valid,
+            user: user,
+            token,
+          });
+        } catch (error) {
+          console.error(error);
+          res.status(500).json({ message: "Erreur serveur interne" });
+        }
       } else {
-        // L'utilisateur existe, renvoyons les détails de l'utilisateur
         await user.save();
         const token = jwt.sign({ userId: user._id }, "RANDOM_TOKEN_SECRET", {
           expiresIn: "30m",
@@ -92,7 +125,6 @@ exports.loginOtp = async (req, res, next) => {
         });
       }
     } else {
-      // L'OTP est incorrect
       res.status(401).json({
         message: "Le code OTP est incorrect.",
       });
@@ -186,7 +218,7 @@ exports.logout = (req, res, next) => {
 
 exports.loginDev = async (req, res, next) => {
   try {
-    const user = User.findById(user._id);
+    const user = User.findOne({ phoneNumber: req.body.phoneNumber });
     if (!user && code === 1234) {
       // L'utilisateur n'existe pas, créons-le
       user = new User({
@@ -205,17 +237,12 @@ exports.loginDev = async (req, res, next) => {
         token,
       });
     } else {
-      // L'utilisateur existe, renvoyons les détails de l'utilisateur
-      await user.save();
       const token = jwt.sign({ userId: user._id }, "RANDOM_TOKEN_SECRET", {
         expiresIn: "30m",
       });
       res.status(200).json({
         message: "OTP vérifié avec succès!",
-        sendTo: verifiedResponse.to,
-        status: verifiedResponse.status,
-        valid: verifiedResponse.valid,
-        user: user,
+        user: user._id,
         token,
       });
     }
@@ -228,24 +255,21 @@ exports.loginDev = async (req, res, next) => {
 
 exports.pinSet = async (req, res) => {
   try {
-    await User.findOne({ userId: req.body.phoneNumber })
-      .exec()
-      .then((user) => {
-        if (user) {
-          console.log(user);
-          if (user.hasPin === false) {
-            user.userPin = req.body.userPin;
-            user.hasPin = true;
-            user.save();
+    const user = await User.findOne({ phoneNumber: req.body.phoneNumber });
 
-            res.status(200).json({ success: true });
-          } else {
-            res.status(400).json({ error: { code: "PIN_ALREADY_EXISTS" } });
-          }
-        } else {
-          res.status(404).json({ error: { code: "USER_NOT_FOUND" } });
-        }
-      });
+    if (user) {
+      if (user.hasPin === false) {
+        user.userPin = req.body.userPin;
+        user.hasPin = true;
+        user.save();
+
+        res.status(200).json({ success: true, user });
+      } else {
+        res.status(400).json({ error: { code: "PIN_ALREADY_EXISTS" } });
+      }
+    } else {
+      res.status(404).json({ error: { code: "USER_NOT_FOUND" } });
+    }
   } catch (error) {
     console.error(error);
     res.status(500).json({ error });
@@ -253,57 +277,10 @@ exports.pinSet = async (req, res) => {
 };
 
 exports.getUser = async (req, res) => {
-  const SUBSCRIPTION_KEY = process.env.SUBSCRIPTION_KEY;
   try {
-    /*
-      Pour lancer la création du access_token
-        1 - Enregistremment du uuid généré ici,
-        2 - Génération du api_key,
-        3 - Génération du access_token
-      */
-    const externalTransactionId = uuid.v4();
-    const authHandler = new ApiAuthenticationByReference(externalTransactionId);
-
-    // Appeler la méthode authenticate pour obtenir l'access_token
-    const accessToken = await authHandler.authenticate();
-
-    User.findById(req.params.user)
+    User.findOne({ phoneNumber: req.params.user })
       .then((user) => {
         if (user) {
-          const accountHolderMSISDN = user.phoneNumber;
-          console.log("Téléphone de user", accountHolderMSISDN);
-          // Get user info form API MTN
-          fetch(
-            `https://sandbox.momodeveloper.mtn.com/collection//v1_0/accountholder/msisdn/${accountHolderMSISDN}/basicuserinfo`,
-            {
-              method: "GET",
-              // Request headers
-              headers: {
-                Authorization: `Bearer ${accessToken}`,
-                "X-Target-Environment": "sandbox",
-                "Cache-Control": "no-cache",
-                "Ocp-Apim-Subscription-Key": SUBSCRIPTION_KEY,
-              },
-            }
-          )
-            .then((response) => {
-              console.log(response.status);
-              console.log(response.text());
-              res.status(200).json({
-                userId: user._id,
-                userPhone: user.phoneNumber,
-                userPin: user.userPin,
-                hasPin: user.hasPin,
-                userName: response.name,
-                userGiveName: response.given_name,
-                userFamillyName: response.family_name,
-                userBirthdate: response.birthdate,
-                userLocale: response.locale,
-                userGender: response.gender,
-              });
-            })
-            .catch((err) => console.error(err));
-
           res.status(200).json({ success: true, user });
         } else {
           res.status(404).json({ error: { code: "USER_NOT_FOUND" } });
