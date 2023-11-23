@@ -9,6 +9,7 @@ const client = require("twilio")(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN);
 const ApiAuthenticationByReference = require("../utils/api/authentication");
 const uuid = require("uuid");
 const { response } = require("express");
+const Balance = require("../models/Balance");
 
 /**
  * Envoi d'un code OTP
@@ -95,6 +96,16 @@ exports.loginOtp = async (req, res, next) => {
           });
 
           await user.save();
+
+          const balance = new Balance({
+            user: user._id,
+            oldBalance: 0,
+            enterAmount: 0,
+            userBalance: 0,
+          });
+
+          await balance.save();
+
           const token = jwt.sign({ userId: user._id }, "RANDOM_TOKEN_SECRET", {
             expiresIn: "24h",
           });
@@ -208,7 +219,7 @@ exports.login = async (req, res, next) => {
  * @param res
  */
 exports.logout = (req, res, next) => {
-  res.status(201).json("Déconnexion réussie !");
+  res.status(201).json({ success: true });
 };
 
 /**

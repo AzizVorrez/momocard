@@ -32,10 +32,12 @@ const userRoutes = require("./routes/user");
 const transactionRoutes = require("./routes/transaction");
 const cardRoutes = require("./routes/card");
 const otpRoutes = require("./routes/otp");
+const balanceRoutes = require("./routes/balance");
 
 app.use("/user/auth", userRoutes);
 app.use("/transaction", transactionRoutes);
 app.use("/card", cardRoutes);
 app.use("/otp", otpRoutes);
+app.use("/user", balanceRoutes);
 
 module.exports = app;
