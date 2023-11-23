@@ -2,9 +2,9 @@ const mongoose = require("mongoose");
 
 const BalanceSchema = mongoose.Schema({
   user: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
-  oldBalance: { type: Number, required: true, default: 0 },
-  enterAmount: { type: Number, required: true, default: 0 },
-  userBalance: { type: Number, required: true, default: 0 },
+  oldBalance: { type: Number, required: false },
+  enterAmount: { type: Number, required: false },
+  userBalance: { type: Number, required: false },
   createdAt: { type: Date, default: Date.now },
   updateAt: { type: Date, default: Date.now },
 });

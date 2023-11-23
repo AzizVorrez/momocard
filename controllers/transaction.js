@@ -2,12 +2,12 @@ const Transaction = require("../models/Transaction");
 const User = require("../models/User");
 const uuid = require("uuid");
 const ApiAuthenticationByReference = require("../utils/api/authentication");
+const Balance = require("../models/Balance");
 
 exports.refill = async (req, res, next) => {
   const externalTransactionId = uuid.v4();
   const serviceProviderUserName = "MoMoCard";
   const SUBSCRIPTION_KEY = process.env.SUBSCRIPTION_KEY;
-  console.log(req.body);
 
   try {
     const user = await User.findById(req.body.user);
@@ -53,7 +53,7 @@ exports.refill = async (req, res, next) => {
           "Ocp-Apim-Subscription-Key": SUBSCRIPTION_KEY,
         },
       })
-        .then((response) => {
+        .then(async (response) => {
           if (response.status != 202) {
             res.status(400).json({ error: { code: "PAYMENT_FAILED" } });
           } else {
@@ -68,9 +68,26 @@ exports.refill = async (req, res, next) => {
               payeeNote: req.body.payeeNote,
               transactionType: req.body.transactionType,
             });
-            transaction.save();
-            console.log(user.card);
-            res.status(202).json({ success: true });
+            await transaction.save();
+
+            const balance = await Balance.findOne({ user: req.body.user });
+
+            if (balance) {
+              balance.oldBalance = balance.userBalance;
+              balance.userBalance = balance.oldBalance + transaction.amount;
+              balance.enterAmount = transaction.amount;
+
+              await balance.save();
+            } else {
+              res.status(500).json({ error: { code: "INTERNAL_ERROR " } });
+            }
+
+            res.status(202).json({
+              success: true,
+              oldBalance: balance.oldBalance,
+              enterAmount: balance.enterAmount,
+              newBalance: balance.userBalance,
+            });
           }
         })
         .catch((err) => console.error(err));
