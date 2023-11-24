@@ -141,9 +141,10 @@ exports.receive = async (req, res) => {
 
 exports.transfer = async (req, res, next) => {};
 
+
 exports.historyMin = async (req, res, next) => {
   try {
-    const userId = req.params.user; // Utilisez req.params.user pour obtenir l'ID de l'utilisateur depuis les paramètres de l'URL
+    const userId = req.params.user;
 
     const user = await User.findById(userId);
 
@@ -155,6 +156,12 @@ exports.historyMin = async (req, res, next) => {
 
     const transactions = await Transaction.find({ user: userId }).limit(5);
 
+    // Fonction de comparaison pour trier les transactions par date de la plus récente à la plus ancienne
+    const compareDates = (a, b) => new Date(b.date) - new Date(a.date);
+
+    // Utilisez la fonction de comparaison pour trier les transactions
+    transactions.sort(compareDates);
+
     res.status(200).json({ transactions });
   } catch (error) {
     console.error(error);
@@ -164,17 +171,21 @@ exports.historyMin = async (req, res, next) => {
 
 exports.historyAll = async (req, res, next) => {
   try {
-    const userId = req.params.user; // Utilisez req.params.user pour obtenir l'ID de l'utilisateur depuis les paramètres de l'URL
+    const userId = req.params.user;
 
     const user = await User.findById(userId);
 
     if (!user) {
-      return res
-        .status(400)
-        .json({ message: "Cet utilisateur n'existe pas !" });
+      return res.status(400).json({ error: { code: "USER_NOT_FOUND" } });
     }
 
     const transactions = await Transaction.find({ user: userId });
+
+    // Fonction de comparaison pour trier les transactions par date de la plus récente à la plus ancienne
+    const compareDates = (a, b) => new Date(b.date) - new Date(a.date);
+
+    // Utilisez la fonction de comparaison pour trier les transactions
+    transactions.sort(compareDates);
 
     res.status(200).json({ transactions });
   } catch (error) {
