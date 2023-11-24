@@ -66,7 +66,7 @@ exports.refill = async (req, res, next) => {
               partyId: req.body.partyId,
               payerMessage: req.body.payerMessage,
               payeeNote: req.body.payeeNote,
-              transactionType: req.body.transactionType,
+              transactionType: "credit",
             });
             await transaction.save();
 
@@ -98,27 +98,44 @@ exports.refill = async (req, res, next) => {
   }
 };
 
-exports.receive = async (req, res, next) => {
-  try {
-    const cardExist = Card.findById(req.body.cardId);
+exports.receive = async (req, res) => {
+  const sender = await Card.findOne({ user: req.boby.cardId });
 
-    if (cardExist) {
-      userId = req.body.idCard;
-      const user = await User.findById(userId);
+  console.log(sender);
 
-      if (user) {
-        res.status(200).json({ message: "Tout se passe très bien  !" });
-      } else {
-        res.status(400).json({
-          message: "Utilisateur lié à la carte n'a pas pu être trouvé !",
-        });
-      }
+  if (sender) {
+    const transaction = new Transaction({
+      user: user,
+      amount: req.body.amount,
+      currency: "EUR",
+      externalId: externalTransactionId,
+      partyIdType: req.body.partyIdType,
+      partyId: req.body.partyId,
+      payerMessage: req.body.payerMessage,
+      payeeNote: req.body.payeeNote,
+      transactionType: "debit",
+    });
+    await transaction.save();
+    const recever = await User.findById(req.body.userId);
+    console.log(recever);
+    if (recever) {
+      const transaction = new Transaction({
+        user: user,
+        amount: req.body.amount,
+        currency: "EUR",
+        externalId: externalTransactionId,
+        partyIdType: req.body.partyIdType,
+        partyId: req.body.partyId,
+        payerMessage: req.body.payerMessage,
+        payeeNote: req.body.payeeNote,
+        transactionType: "credit",
+      });
+      await transaction.save();
     } else {
-      res.status(400).json({ message: "Cette carte n'existe pas !" });
+      res.status(404).json({ error: { code: "USER_NOT_FOUND " } });
     }
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: "Erreur serveur interne" });
+  } else {
+    res.status(404).json({ error: { code: "USER_NOT_FOUND " } });
   }
 };
 
