@@ -3,10 +3,6 @@
   "version": "1.0.0",
   "description": "",
   "main": "server.js",
-  "engines": {
-    "node": "20.x",
-    "npm": "9.x"
-  },
   "scripts": {
     "start": "nodemon server",
     "test": "echo \"Error: no test specified\" && exit 1",
@@ -37,7 +33,7 @@
     "mongoose": "^8.0.0",
     "node": "^21.1.0",
     "nodemon": "^3.0.1",
-    "twilio": "^3.84.1",
+    "twilio": "^3.40.0",
     "uuid": "^9.0.1"
   }
 }
