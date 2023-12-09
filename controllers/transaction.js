@@ -105,6 +105,7 @@ exports.receive = async (req, res) => {
     const recipientId = req.body.recipientId;
     const amountCharged = req.body.amountCharged;
     const code = req.body.code;
+    const amountReceive = req.body.amount;
 
     const receiver = await User.findById(recipientId);
     const sender = await User.findById(senderId);
@@ -130,7 +131,7 @@ exports.receive = async (req, res) => {
           const receiverBalance = await Balance.findOne({ user: recipientId });
           const transaction = new InternTransaction({
             user: recipientId,
-            amount: amountCharged,
+            amount: amountReceive,
             transactionType: "credit",
           });
           await transaction.save();
