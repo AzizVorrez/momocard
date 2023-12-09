@@ -99,47 +99,43 @@ exports.refill = async (req, res, next) => {
 };
 
 exports.receive = async (req, res) => {
-  const sender = await Card.findOne({ user: req.boby.cardId });
+  try {
+    const sender = await User.findById(senderId);
+      if (sender & senderPin === sender.userPin) {
+        const senderBalance = Balance.findOne({ user : senderId});
+        if (senderBalance >= amount) {
 
-  console.log(sender);
+            balance.oldBalance = balance.userBalance;
+            balance.userBalance = balance.oldBalance + transaction.amount;
+            balance.enterAmount = transaction.amount;
+        
+            await balance.save();
 
-  if (sender) {
-    const transaction = new Transaction({
-      user: user,
-      amount: req.body.amount,
-      currency: "EUR",
-      externalId: externalTransactionId,
-      partyIdType: req.body.partyIdType,
-      partyId: req.body.partyId,
-      payerMessage: req.body.payerMessage,
-      payeeNote: req.body.payeeNote,
-      transactionType: "debit",
-    });
-    await transaction.save();
-
-    
-    const recever = await User.findById(req.body.userId);
-    console.log(recever);
-    if (recever) {
-      const transaction = new Transaction({
-        user: user,
-        amount: req.body.amount,
-        currency: "EUR",
-        externalId: externalTransactionId,
-        partyIdType: req.body.partyIdType,
-        partyId: req.body.partyId,
-        payerMessage: req.body.payerMessage,
-        payeeNote: req.body.payeeNote,
-        transactionType: "credit",
-      });
-      await transaction.save();
-    } else {
-      res.status(404).json({ error: { code: "USER_NOT_FOUND " } });
-    }
-  } else {
-    res.status(404).json({ error: { code: "USER_NOT_FOUND " } });
-  }
+            const transaction = new Transaction({
+              user: user,
+              amount: req.body.amount,
+              currency: "EUR",
+              externalId: externalTransactionId,
+              partyIdType: req.body.partyIdType,
+              partyId: req.body.partyId,
+              payerMessage: req.body.payerMessage,
+              payeeNote: req.body.payeeNote,
+              transactionType: "debit",
+            });
+            await transaction.save();
+          }
+        }
+        else {
+          res.status(400).json({ error: { code: "ININSUFFICIENT_BALANCE" } });
+        }
+      }
+} catch (error) {
+      
 };
+
+};
+
+
 
 exports.transfer = async (req, res, next) => {};
 
