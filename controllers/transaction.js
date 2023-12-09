@@ -3,6 +3,7 @@ const User = require("../models/User");
 const uuid = require("uuid");
 const ApiAuthenticationByReference = require("../utils/api/authentication");
 const Balance = require("../models/Balance");
+const InternTransaction = require("../models/InternTransactions");
 
 exports.refill = async (req, res, next) => {
   const externalTransactionId = uuid.v4();
@@ -100,40 +101,61 @@ exports.refill = async (req, res, next) => {
 
 exports.receive = async (req, res) => {
   try {
+    const senderId = req.body.senderId;
+    const recipientId = req.body.recipientId;
+    const amountCharged = req.body.amountCharged;
+    const code = req.body.code;
+
+    const receiver = await User.findById(recipientId);
     const sender = await User.findById(senderId);
-      if (sender & senderPin === sender.userPin) {
-        const senderBalance = Balance.findOne({ user : senderId});
-        if (senderBalance >= amount) {
 
-            balance.oldBalance = balance.userBalance;
-            balance.userBalance = balance.oldBalance + transaction.amount;
-            balance.enterAmount = transaction.amount;
-        
-            await balance.save();
+    if (sender && code === sender.userPin) {
+      const senderBalance = await Balance.findOne({ user: senderId });
 
-            const transaction = new Transaction({
-              user: user,
-              amount: req.body.amount,
-              currency: "EUR",
-              externalId: externalTransactionId,
-              partyIdType: req.body.partyIdType,
-              partyId: req.body.partyId,
-              payerMessage: req.body.payerMessage,
-              payeeNote: req.body.payeeNote,
-              transactionType: "debit",
-            });
-            await transaction.save();
-          }
+      if (senderBalance.userBalance >= amountCharged) {
+        const transaction = new InternTransaction({
+          user: senderId,
+          amount: amountCharged,
+          transactionType: "debit",
+        });
+        await transaction.save();
+
+        senderBalance.oldBalance = senderBalance.userBalance;
+        senderBalance.userBalance = senderBalance.oldBalance - transaction.amount;
+        senderBalance.enterAmount = transaction.amount;
+
+        await senderBalance.save();
+
+        if (receiver) {
+          const receiverBalance = await Balance.findOne({ user: recipientId });
+          const transaction = new InternTransaction({
+            user: recipientId,
+            amount: amountCharged,
+            transactionType: "credit",
+          });
+          await transaction.save();
+
+          receiverBalance.oldBalance = receiverBalance.userBalance;
+          receiverBalance.userBalance = receiverBalance.oldBalance + transaction.amount;
+          receiverBalance.enterAmount = transaction.amount;
+
+          await receiverBalance.save();
+          res.status(400).json({ success: true, receiverBalance, senderBalance });
+        } else {
+          res.status(400).json({ error: { code: "RECEIVER_NOT_FOUND" } });
         }
-        else {
-          res.status(400).json({ error: { code: "ININSUFFICIENT_BALANCE" } });
-        }
+      } else {
+        res.status(400).json({ error: { code: "INSUFFICIENT_BALANCE" } });
       }
-} catch (error) {
-      
+    } else {
+      res.status(400).json({ error: { code: "USER_NOT_FOUND_OR_PIN_INCORRECT" } });
+    }
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Erreur serveur" });
+  }
 };
 
-};
 
 
 
