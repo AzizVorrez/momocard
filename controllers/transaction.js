@@ -116,6 +116,8 @@ exports.receive = async (req, res) => {
       transactionType: "debit",
     });
     await transaction.save();
+
+    
     const recever = await User.findById(req.body.userId);
     console.log(recever);
     if (recever) {

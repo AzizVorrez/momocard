@@ -303,3 +303,22 @@ exports.getUser = async (req, res) => {
     res.status(500).json({ message: "Erreur serveur interne" });
   }
 };
+
+
+exports.getUserById = async (req, res) => {
+  try {
+    userId = req.params.userId
+    User.findById(userId)
+      .then((user) => {
+        if (user) {
+          res.status(200).json({ success: true, user });
+        } else {
+          res.status(404).json({ error: { code: "USER_NOT_FOUND" } });
+        }
+      })
+      .catch((err) => console.error(err));
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Erreur serveur interne" });
+  }
+};

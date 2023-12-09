@@ -11,5 +11,6 @@ router.post("/otp/login", userCtrl.loginOtp);
 router.post("/login-dev", userCtrl.loginDev);
 router.patch("/set-pin", auth, userCtrl.pinSet);
 router.get("/:user", auth, userCtrl.getUser);
+router.get("/by-id/:userId", auth, userCtrl.getUserById);
 
 module.exports = router;
