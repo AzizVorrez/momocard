@@ -141,7 +141,7 @@ exports.receive = async (req, res) => {
           receiverBalance.enterAmount = transaction.amount;
 
           await receiverBalance.save();
-          res.status(400).json({ success: true, receiverBalance, senderBalance });
+          res.status(200).json({ success: true, receiverBalance, senderBalance });
         } else {
           res.status(400).json({ error: { code: "RECEIVER_NOT_FOUND" } });
         }
